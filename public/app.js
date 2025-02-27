@@ -45,8 +45,23 @@ document.getElementById('whyButton').addEventListener('click', function() {
     this.style.display = 'none'; // Hide the button after revealing punchline
 });
 
-// Load next joke when "Next Joke" is clicked
-document.getElementById('nextJoke').addEventListener('click', displayNewJoke);
+// Event Listener for Next Joke button
+document.getElementById('nextJoke').addEventListener('click', function() {
+    fetchJoke();  // Fetch a new joke
+
+    // Clear the status message and reset the form
+    const statusDiv = document.getElementById('submitStatus');
+    statusDiv.innerHTML = '';  // Clear any existing messages
+    statusDiv.style.display = 'none';  // Hide the status message
+
+    // Reset the form fields
+    document.getElementById('newSetup').value = '';
+    document.getElementById('newPunchline').value = '';
+
+    // Optionally, hide the AI and Human badges
+    document.getElementById('aiBadge').style.display = 'none';
+    document.getElementById('humanBadge').style.display = 'none';
+});
 
 // Load first joke when page loads
 displayNewJoke();
