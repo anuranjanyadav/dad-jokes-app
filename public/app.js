@@ -34,8 +34,12 @@ async function fetchJoke() {
         const questionButton = document.getElementById('whyButton');
         if (currentJoke.setup.toLowerCase().startsWith('what')) {
             questionButton.textContent = 'What?';
+        } else if (currentJoke.setup.toLowerCase().startsWith('how')) {
+            questionButton.textContent = 'How';
+        } else if (currentJoke.setup.toLowerCase().startsWith('when')) {
+            questionButton.textContent = 'When';
         } else {
-            questionButton.textContent = 'Why?';
+            questionButton.textContent = 'Why?'; // Default case
         }
     } catch (error) {
         console.error('Error:', error);
@@ -150,8 +154,12 @@ document.getElementById('generateAIJoke').addEventListener('click', async functi
         const questionButton = document.getElementById('whyButton');
         if (joke.setup.toLowerCase().startsWith('what')) {
             questionButton.textContent = 'What?';
+        } else if (joke.setup.toLowerCase().startsWith('how to')) {
+            questionButton.textContent = 'How';
+        } else if (joke.setup.toLowerCase().startsWith('when')) {
+            questionButton.textContent = 'When';
         } else {
-            questionButton.textContent = 'Why?';
+            questionButton.textContent = 'Why?'; // Default case
         }
     } catch (error) {
         console.error('Error:', error);
