@@ -11,13 +11,13 @@ async function fetchJoke() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ jokeId: currentJoke.id, userId: 'unique_user_identifier' })  // Replace with actual user ID
+            body: JSON.stringify({ jokeId: currentJoke.id })  // Only send jokeId
         });
 
         // Update the statistics card
         const statsResponse = await fetch('/api/joke/statistics');
         const stats = await statsResponse.json();
-        document.getElementById('totalJokesViewed').textContent = stats.total_jokes_viewed + 1; // Increment the viewed count
+        document.getElementById('totalJokesViewed').textContent = stats.total_jokes_viewed; // Update the viewed count
 
         document.getElementById('setup').textContent = currentJoke.setup;
         document.getElementById('punchline').textContent = currentJoke.punchline;
@@ -60,7 +60,7 @@ document.getElementById('whyButton').addEventListener('click', function() {
 });
 
 // Event Listener for Next Joke button
-document.getElementById('nextJoke').addEventListener('click', async function() {
+document.getElementById('nextJoke').addEventListener('click', debounce(async function() {
     await fetchJoke();  // Fetch a new joke
 
     // Clear the status message and reset the form
@@ -75,10 +75,13 @@ document.getElementById('nextJoke').addEventListener('click', async function() {
     // Optionally, hide the AI and Human badges
     document.getElementById('aiBadge').style.display = 'none';
     document.getElementById('humanBadge').style.display = 'none';
-});
+}, 100));  // Set the delay to 100 ms
 
 // Load first joke when page loads
 displayNewJoke();
+
+// Call fetchJoke when the page loads
+window.onload = fetchJoke;
 
 // Form submission handling
 document.getElementById('jokeForm').addEventListener('submit', async function(e) {
@@ -89,8 +92,8 @@ document.getElementById('jokeForm').addEventListener('submit', async function(e)
     const statusDiv = document.getElementById('submitStatus');
     
     try {
-        // First check if joke is valid and unique
-        const checkResponse = await fetch('/api/jokes/check', {
+        // Submit the joke
+        const submitResponse = await fetch('/api/jokes/submit', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -98,50 +101,21 @@ document.getElementById('jokeForm').addEventListener('submit', async function(e)
             body: JSON.stringify({ setup, punchline })
         });
         
-        const checkResult = await checkResponse.json();
-        
-        // Create or update status message
-        let statusMessage = '';
-        if (!checkResult.valid) {
-            statusMessage = `
-                <div class="error-message">${checkResult.message}</div>
-                <div class="status-content">
-                    <span class="ai-validator-badge" title="Validated by AI">AI</span>
-                    <span class="status-text">* This is an AI validation</span>
-                </div>
-            `;
-            statusDiv.className = 'status-message error';
+        if (submitResponse.ok) {
+            // Increment the displayed total jokes added count immediately
+            const totalJokesAddedElement = document.getElementById('totalJokesAdded');
+            totalJokesAddedElement.textContent = parseInt(totalJokesAddedElement.textContent) + 1; // Increment the count
+
+            statusDiv.innerHTML = 'Joke submitted successfully!';
+            statusDiv.className = 'status-message success';
+            document.getElementById('jokeForm').reset(); // Reset the form
         } else {
-            // If valid, submit the joke
-            const submitResponse = await fetch('/api/jokes/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ setup, punchline })
-            });
-            
-            if (submitResponse.ok) {
-                statusMessage = 'Joke submitted successfully!';
-                statusDiv.className = 'status-message success';
-                document.getElementById('jokeForm').reset();
-            } else {
-                throw new Error('Failed to submit joke');
-            }
+            throw new Error('Failed to submit joke');
         }
         
-        statusDiv.innerHTML = statusMessage;
-        statusDiv.style.display = 'block';
-        
     } catch (error) {
-        console.error('Error:', error);
-        statusDiv.innerHTML = `
-            <div class="error-message">Error submitting joke. Please try again.</div>
-            <div class="status-content">
-                <span class="ai-validator-badge" title="Validated by AI">AI</span>
-                <span class="status-text">* This is an AI validation</span>
-            </div>
-        `;
+        console.error('Error submitting joke:', error);
+        statusDiv.innerHTML = 'Error submitting joke. Please try again.';
         statusDiv.className = 'status-message error';
     }
 });
@@ -198,3 +172,15 @@ async function fetchStatistics() {
 
 // Call this function when the page loads
 fetchStatistics();
+
+function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(() => {
+            func.apply(null, args);
+        }, delay);
+    };
+}

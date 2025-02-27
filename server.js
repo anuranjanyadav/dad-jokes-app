@@ -170,14 +170,14 @@ app.post('/api/jokes/submit', async (req, res) => {
 });
 
 app.post('/api/jokes/view', async (req, res) => {
-    const { jokeId, userId } = req.body;  // Expecting jokeId and userId in the request body
+    const { jokeId } = req.body;  // Only expect jokeId in the request body
     const today = new Date().toISOString().split('T')[0];  // Get today's date in YYYY-MM-DD format
 
     try {
-        // Insert a new view record
+        // Insert a new view record without user ID
         await pool.query(
-            'INSERT INTO joke_views (joke_id, user_id, view_date) VALUES ($1, $2, $3)',
-            [jokeId, userId, today]
+            'INSERT INTO joke_views (joke_id, view_date) VALUES ($1, $2)',
+            [jokeId, today]
         );
 
         // Increment the total jokes viewed count
