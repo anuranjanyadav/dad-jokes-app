@@ -85,7 +85,10 @@ document.getElementById('nextJoke').addEventListener('click', debounce(async fun
 displayNewJoke();
 
 // Call fetchJoke when the page loads
-window.onload = fetchJoke;
+window.onload = function() {
+    fetchJoke();  // Fetch a random joke
+    fetchStatistics();  // Fetch statistics
+};
 
 // Form submission handling
 document.getElementById('jokeForm').addEventListener('submit', async function(e) {
@@ -171,15 +174,12 @@ async function fetchStatistics() {
     try {
         const response = await fetch('/api/joke/statistics');
         const stats = await response.json();
-        document.getElementById('totalJokesAdded').textContent = stats.total_jokes_added;
-        document.getElementById('totalJokesViewed').textContent = stats.total_jokes_viewed;
+        document.getElementById('totalJokesAdded').textContent = stats.total_jokes_added; // Display total jokes added
+        document.getElementById('totalJokesViewed').textContent = stats.total_jokes_viewed; // Display total jokes viewed
     } catch (error) {
         console.error('Error fetching statistics:', error);
     }
 }
-
-// Call this function when the page loads
-fetchStatistics();
 
 function debounce(func, delay) {
     let timeoutId;
