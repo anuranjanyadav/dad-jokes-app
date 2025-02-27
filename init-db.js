@@ -28,16 +28,43 @@ async function initializeDb() {
             WHERE is_ai_generated IS NULL
         `);
         
-        // Create table if not exists (for new installations)
+        // Create jokes table if it doesn't exist
         await client.query(`
             CREATE TABLE IF NOT EXISTS jokes (
                 id SERIAL PRIMARY KEY,
                 setup TEXT NOT NULL,
                 punchline TEXT NOT NULL,
-                is_ai_generated BOOLEAN DEFAULT TRUE,
+                is_ai_generated BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Create joke_views table if it doesn't exist
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS joke_views (
+                id SERIAL PRIMARY KEY,
+                joke_id INT REFERENCES jokes(id),
+                user_id VARCHAR(255),
+                view_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Create joke_statistics table if it doesn't exist
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS joke_statistics (
+                id SERIAL PRIMARY KEY,
+                total_jokes_added INT DEFAULT 0,
+                total_jokes_viewed INT DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Initialize the joke_statistics table with a single row if it's empty
+        const statsResult = await client.query('SELECT COUNT(*) FROM joke_statistics');
+        if (parseInt(statsResult.rows[0].count) === 0) {
+            await client.query('INSERT INTO joke_statistics (total_jokes_added, total_jokes_viewed) VALUES (0, 0)');
+        }
 
         // If table is empty, insert initial jokes as AI-generated
         const result = await client.query('SELECT COUNT(*) FROM jokes');

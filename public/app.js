@@ -5,6 +5,20 @@ async function fetchJoke() {
         const response = await fetch('/api/jokes/random');
         currentJoke = await response.json();
         
+        // Log the joke view
+        await fetch('/api/jokes/view', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ jokeId: currentJoke.id, userId: 'unique_user_identifier' })  // Replace with actual user ID
+        });
+
+        // Update the statistics card
+        const statsResponse = await fetch('/api/joke/statistics');
+        const stats = await statsResponse.json();
+        document.getElementById('totalJokesViewed').textContent = stats.total_jokes_viewed + 1; // Increment the viewed count
+
         document.getElementById('setup').textContent = currentJoke.setup;
         document.getElementById('punchline').textContent = currentJoke.punchline;
         document.getElementById('punchline').style.display = 'none';
@@ -46,8 +60,8 @@ document.getElementById('whyButton').addEventListener('click', function() {
 });
 
 // Event Listener for Next Joke button
-document.getElementById('nextJoke').addEventListener('click', function() {
-    fetchJoke();  // Fetch a new joke
+document.getElementById('nextJoke').addEventListener('click', async function() {
+    await fetchJoke();  // Fetch a new joke
 
     // Clear the status message and reset the form
     const statusDiv = document.getElementById('submitStatus');
@@ -170,3 +184,17 @@ document.getElementById('generateAIJoke').addEventListener('click', async functi
         document.getElementById('setup').textContent = 'Error generating joke';
     }
 });
+
+async function fetchStatistics() {
+    try {
+        const response = await fetch('/api/joke/statistics');
+        const stats = await response.json();
+        document.getElementById('totalJokesAdded').textContent = stats.total_jokes_added;
+        document.getElementById('totalJokesViewed').textContent = stats.total_jokes_viewed;
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+    }
+}
+
+// Call this function when the page loads
+fetchStatistics();

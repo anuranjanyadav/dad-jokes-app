@@ -152,16 +152,51 @@ app.post('/api/jokes/check', async (req, res) => {
 
 // Endpoint to submit a new joke
 app.post('/api/jokes/submit', async (req, res) => {
+    const { setup, punchline } = req.body;
     try {
-        const { setup, punchline } = req.body;
         const result = await pool.query(
             'INSERT INTO jokes (setup, punchline, is_ai_generated) VALUES ($1, $2, FALSE) RETURNING *',
             [setup, punchline]
         );
+
+        // Increment the total jokes added count
+        await pool.query('UPDATE joke_statistics SET total_jokes_added = total_jokes_added + 1');
+
         res.json(result.rows[0]);
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Failed to submit joke' });
+    }
+});
+
+app.post('/api/jokes/view', async (req, res) => {
+    const { jokeId, userId } = req.body;  // Expecting jokeId and userId in the request body
+    const today = new Date().toISOString().split('T')[0];  // Get today's date in YYYY-MM-DD format
+
+    try {
+        // Insert a new view record
+        await pool.query(
+            'INSERT INTO joke_views (joke_id, user_id, view_date) VALUES ($1, $2, $3)',
+            [jokeId, userId, today]
+        );
+
+        // Increment the total jokes viewed count
+        await pool.query('UPDATE joke_statistics SET total_jokes_viewed = total_jokes_viewed + 1');
+
+        res.status(200).json({ message: 'Joke view logged successfully' });
+    } catch (error) {
+        console.error('Error logging joke view:', error);
+        res.status(500).json({ error: 'Failed to log joke view' });
+    }
+});
+
+app.get('/api/joke/statistics', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM joke_statistics');
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+        res.status(500).json({ error: 'Failed to fetch statistics' });
     }
 });
 

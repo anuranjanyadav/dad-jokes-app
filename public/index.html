@@ -352,6 +352,35 @@
             white-space: nowrap;
             margin-bottom: 5px;
         }
+
+        .statistics-card {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            width: 200px;
+            z-index: 1000;  /* Ensure it appears above other elements */
+            transition: transform 0.3s ease;
+        }
+
+        .statistics-card h4 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .statistics-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .statistics-card:hover {
+            transform: scale(1.05);  /* Slightly enlarge on hover */
+        }
     </style>
 </head>
 <body>
@@ -391,6 +420,12 @@
                 <button type="submit">Submit Joke</button>
             </form>
             <div id="submitStatus" class="status-message"></div>
+        </div>
+
+        <div class="statistics-card" id="statisticsCard">
+            <h4>Joke Statistics</h4>
+            <p>Total Jokes Added: <span id="totalJokesAdded">0</span></p>
+            <p>Total Jokes Viewed: <span id="totalJokesViewed">0</span></p>
         </div>
     </div>
     <script src="app.js"></script>
