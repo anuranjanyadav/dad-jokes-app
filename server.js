@@ -2,7 +2,8 @@ import express from 'express';
 import { pool } from './db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { OpenAI } from 'openai';
+import OpenAI from 'openai';
+import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,7 +11,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
+
 app.use(express.static('public'));
+app.use(express.json());  // for parsing application/json
 
 // Function to calculate similarity between two strings
 function stringSimilarity(str1, str2) {
@@ -41,97 +47,66 @@ function stringSimilarity(str1, str2) {
     return 1 - (matrix[len1][len2] / Math.max(len1, len2));
 }
 
-// Simple validation for dad jokes
-function validateDadJoke(setup, punchline) {
-    // Convert to lowercase for checking
-    const lowercaseSetup = setup.toLowerCase();
-    const lowercasePunchline = punchline.toLowerCase();
-    
-    // Basic validation rules
-    const validationRules = {
-        // Check if setup is a question
-        hasQuestion: setup.includes('?'),
+// 1. Joke Validation Function
+async function validateWithAI(setup, punchline) {
+    try {
+        const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a dad joke expert. Evaluate if the given joke is a proper dad joke (should be family-friendly and contain wordplay/puns). Respond with JSON: {\"valid\": boolean, \"reason\": string}"
+                },
+                {
+                    role: "user",
+                    content: `Setup: ${setup}\nPunchline: ${punchline}`
+                }
+            ],
+            temperature: 0.3
+        });
         
-        // Check minimum lengths
-        validLength: setup.length >= 10 && punchline.length >= 3,
+        return JSON.parse(completion.choices[0].message.content);
+    } catch (error) {
+        console.error('AI Validation Error:', error);
+        return { valid: false, reason: "Error validating joke" };
+    }
+}
+
+// 2. Joke Generation Function
+async function generateDadJoke() {
+    try {
+        console.log('Calling OpenAI API...'); // Debug log
+        const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a dad joke expert. Generate a family-friendly dad joke with wordplay/puns. Respond with JSON: {\"setup\": string, \"punchline\": string}"
+                },
+                {
+                    role: "user",
+                    content: "Generate a dad joke"
+                }
+            ],
+            temperature: 0.7
+        });
         
-        // Check for common dad joke patterns
-        hasWordplay: false,
-        
-        // Check for inappropriate content
-        isClean: true
-    };
-
-    // List of inappropriate words (add more as needed)
-    const inappropriateWords = ['damn', 'hell', 'crap'];
-    
-    // Check for inappropriate words
-    inappropriateWords.forEach(word => {
-        if (lowercaseSetup.includes(word) || lowercasePunchline.includes(word)) {
-            validationRules.isClean = false;
-        }
-    });
-    
-    // Common dad joke patterns (add more as needed)
-    const wordplayPatterns = [
-        'what do you call',
-        'why did',
-        'what did',
-        'how do you',
-        'when does'
-    ];
-    
-    // Check for dad joke patterns
-    wordplayPatterns.forEach(pattern => {
-        if (lowercaseSetup.includes(pattern)) {
-            validationRules.hasWordplay = true;
-        }
-    });
-
-    // Return validation result
-    if (!validationRules.isClean) {
-        return {
-            valid: false,
-            message: 'Please keep jokes family-friendly!'
-        };
+        console.log('OpenAI response:', completion.choices[0].message.content); // Debug log
+        return JSON.parse(completion.choices[0].message.content);
+    } catch (error) {
+        console.error('AI Generation Error:', error);
+        throw error;
     }
-    
-    if (!validationRules.hasQuestion) {
-        return {
-            valid: false,
-            message: 'Setup should be a question ending with "?"'
-        };
-    }
-    
-    if (!validationRules.validLength) {
-        return {
-            valid: false,
-            message: 'Setup and punchline are too short'
-        };
-    }
-    
-    if (!validationRules.hasWordplay) {
-        return {
-            valid: false,
-            message: 'Try starting with "What do you call", "Why did", etc.'
-        };
-    }
-
-    return { valid: true };
 }
 
 // Serve random joke
 app.get('/api/jokes/random', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1');
-        if (result.rows.length > 0) {
-            res.json(result.rows[0]);
-        } else {
-            res.status(404).json({ error: 'No jokes found' });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        const result = await pool.query('SELECT id, setup, punchline, is_ai_generated FROM jokes ORDER BY RANDOM() LIMIT 1');
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Failed to fetch joke' });
     }
 });
 
@@ -139,18 +114,12 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-// Endpoint to check if a joke is valid and unique
+// Update the check endpoint to use AI validation
 app.post('/api/jokes/check', async (req, res) => {
     try {
         const { setup, punchline } = req.body;
         
-        // First validate the joke format
-        const validationResult = validateDadJoke(setup, punchline);
-        if (!validationResult.valid) {
-            return res.json(validationResult);
-        }
-        
-        // Then check for similarity with existing jokes
+        // First check for similarity with existing jokes
         const result = await pool.query('SELECT setup, punchline FROM jokes');
         
         for (const joke of result.rows) {
@@ -165,6 +134,15 @@ app.post('/api/jokes/check', async (req, res) => {
             }
         }
         
+        // Then use AI to validate the joke
+        const aiValidation = await validateWithAI(setup, punchline);
+        if (!aiValidation.valid) {
+            return res.json({
+                valid: false,
+                message: aiValidation.reason
+            });
+        }
+        
         res.json({ valid: true });
     } catch (error) {
         console.error('Error checking joke:', error);
@@ -177,13 +155,13 @@ app.post('/api/jokes/submit', async (req, res) => {
     try {
         const { setup, punchline } = req.body;
         const result = await pool.query(
-            'INSERT INTO jokes (setup, punchline) VALUES ($1, $2) RETURNING *',
+            'INSERT INTO jokes (setup, punchline, is_ai_generated) VALUES ($1, $2, FALSE) RETURNING *',
             [setup, punchline]
         );
         res.json(result.rows[0]);
     } catch (error) {
-        console.error('Error submitting joke:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Failed to submit joke' });
     }
 });
 
